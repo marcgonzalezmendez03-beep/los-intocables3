@@ -126,7 +126,14 @@ function render(data){
     list.forEach(m => {
       const info = resultInfo(value(m,'result'));
       const card = document.createElement('article');
-      card.className = 'match-card';
+      card.className = 'match-card match-clickable';
+      const mid = value(m,'matchId','match_id');
+      if (mid !== null && mid !== undefined && mid !== '') {
+        card.tabIndex = 0; card.setAttribute('role','link');
+        card.setAttribute('aria-label', 'Ver detalles del partido contra ' + (value(m,'opponentName','opponent') || 'rival'));
+        card.addEventListener('click', () => location.href = '/partidos/' + encodeURIComponent(mid));
+        card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') {e.preventDefault();card.click();} });
+      }
       card.innerHTML = `
         <div class="match-result ${info.cls}">${info.short}</div>
         <div class="match-main">
@@ -135,7 +142,7 @@ function render(data){
         </div>
         <div class="match-score">
           <strong>${show(value(m,'goals'))} - ${show(value(m,'goalsAgainst','goalsagainst'))}</strong>
-          <small>${value(m,'dnf') ? 'DNF detectado' : 'Marcador final'}</small>
+          <small>${mid ? 'Ver partido →' : (value(m,'dnf') ? 'DNF detectado' : 'Marcador final')}</small>
         </div>
       `;
       matches.append(card);

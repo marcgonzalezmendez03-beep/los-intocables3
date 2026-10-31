@@ -296,3 +296,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 @media(max-width:1100px){.hero-card{grid-template-columns:1fr 250px;min-height:430px}.crest-frame{min-height:220px}.crest{max-width:220px;max-height:220px}.identity-card{display:none}}
 @media(max-width:760px){.hero-card{grid-template-columns:1fr;padding:30px 24px}.hero-card h1{font-size:clamp(44px,12vw,78px)}.hero-aside{display:none}.hero-meta{gap:14px}.homepage-heading{align-items:start;flex-direction:column;margin-top:38px}.homepage-heading p{max-width:100%}.ticker-edition{display:none}.ticker-copy{font-size:9px}.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-card{min-height:145px}.kpi-card strong{font-size:38px}}
 @media(max-width:440px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-card{padding:18px}.kpi-card strong{font-size:34px}.hero-actions{flex-direction:column}.hero-cta,.hero-secondary{width:100%}}
+
+/* Fichas de partido */
+.match-clickable{cursor:pointer;transition:transform .18s,border-color .18s,background .18s}
+.match-clickable:hover,.match-clickable:focus-visible{transform:translateY(-2px);border-color:#e6ff00!important;outline:2px solid transparent;background:#19231a}

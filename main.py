@@ -40,6 +40,7 @@ def normalized(obj):
 def db():
     conn = sqlite3.connect(DB_PATH)
     conn.execute('CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
+    conn.execute('CREATE TABLE IF NOT EXISTS match_archive (match_id TEXT PRIMARY KEY, payload TEXT NOT NULL, saved_at TEXT NOT NULL)')
     return conn
 
 def get_settings():
@@ -50,7 +51,7 @@ def fetch():
     club_id = api.find_club_id(CLUB_NAME)
     return normalized({'club_id': club_id, 'club': api.get_club_details(club_id),
       'overall': api.get_club_overall_stats(club_id), 'members': api.get_member_stats(club_id),
-      'matches': api.get_club_matches(club_id, count=10),
+      'matches': api.get_club_matches(club_id, count=30),
       'updated_at': datetime.now(timezone.utc).isoformat(), 'error': None})
 
 async def refresh():
@@ -58,6 +59,12 @@ async def refresh():
         data = await asyncio.to_thread(fetch)
         with lock:
             state.update(json.loads(json.dumps(data, default=str)))
+        with db() as conn:
+            for match in data.get('matches', []):
+                if not isinstance(match, dict): continue
+                mid = match.get('matchId') or match.get('match_id')
+                if mid is None: continue
+                conn.execute('INSERT OR REPLACE INTO match_archive(match_id,payload,saved_at) VALUES (?,?,?)', (str(mid), json.dumps(match, ensure_ascii=False, default=str), datetime.now(timezone.utc).isoformat()))
         logger.info('FC27 actualizado: %s', CLUB_NAME)
     except Exception as exc:
         logger.exception('Fallo al consultar FC27')
@@ -122,6 +129,28 @@ async def save_player_profile(request: Request, payload: PlayerProfilePayload):
         conn.execute("CREATE TABLE IF NOT EXISTS player_profiles (player_key TEXT PRIMARY KEY, display_name TEXT NOT NULL DEFAULT '', number TEXT NOT NULL DEFAULT '', position TEXT NOT NULL DEFAULT '', photo_url TEXT NOT NULL DEFAULT '')")
         conn.execute('INSERT OR REPLACE INTO player_profiles(player_key,display_name,number,position,photo_url) VALUES (?,?,?,?,?)', (payload.player_key, payload.display_name, payload.number, payload.position, payload.photo_url))
     return {'ok': True}
+
+
+@app.get('/partidos/{match_id}', response_class=HTMLResponse)
+async def match_page(request: Request, match_id: str):
+    if len(match_id) > 120 or not match_id.strip():
+        raise HTTPException(404, 'Partido no encontrado')
+    return templates.TemplateResponse(request, 'partido.html', {'club_name': CLUB_NAME, 'match_id': match_id})
+
+@app.get('/api/partidos/{match_id}')
+async def match_data(match_id: str):
+    if len(match_id) > 120 or not match_id.strip():
+        raise HTTPException(404, 'Partido no encontrado')
+    with lock:
+        matches = list(state.get('matches') or [])
+    for match in matches:
+        if isinstance(match, dict) and str(match.get('matchId') or match.get('match_id') or '') == match_id:
+            return {'match': match, 'club_name': CLUB_NAME, 'source': 'recent'}
+    with db() as conn:
+        row = conn.execute('SELECT payload FROM match_archive WHERE match_id=?', (match_id,)).fetchone()
+    if row:
+        return {'match': json.loads(row[0]), 'club_name': CLUB_NAME, 'source': 'archive'}
+    raise HTTPException(404, 'Partido no encontrado en los datos disponibles')
 
 @app.get('/api/health')
 async def health():
